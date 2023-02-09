@@ -1,0 +1,133 @@
+USE WideWorldImporters
+/*
+1. Все товары, в названии которых есть "urgent" или название начинается с "Animal".
+Вывести: ИД товара (StockItemID), наименование товара (StockItemName).
+Таблицы: Warehouse.StockItems.
+*/
+select StockItemID,
+StockItemName
+from Warehouse.StockItems
+where StockItemName like '%urgent%' or StockItemName like 'Animal%'
+
+
+/*
+2. Поставщиков (Suppliers), у которых не было сделано ни одного заказа (PurchaseOrders).
+Сделать через JOIN, с подзапросом задание принято не будет.
+Вывести: ИД поставщика (SupplierID), наименование поставщика (SupplierName).
+Таблицы: Purchasing.Suppliers, Purchasing.PurchaseOrders.
+По каким колонкам делать JOIN подумайте самостоятельно.
+*/
+
+select s.SupplierID,s.SupplierName
+from Purchasing.Suppliers s
+join Purchasing.PurchaseOrders p 
+on p.SupplierID = s.SupplierID
+where p.IsOrderFinalized < 1
+
+
+
+/*
+3. Заказы (Orders) с ценой товара (UnitPrice) более 100$ 
+либо количеством единиц (Quantity) товара более 20 штук
+и присутствующей датой комплектации всего заказа (PickingCompletedWhen).
+Вывести:
+* OrderID
+* дату заказа (OrderDate) в формате ДД.ММ.ГГГГ
+* название месяца, в котором был сделан заказ
+* номер квартала, в котором был сделан заказ
+* треть года, к которой относится дата заказа (каждая треть по 4 месяца)
+* имя заказчика (Customer)
+Добавьте вариант этого запроса с постраничной выборкой,
+пропустив первую 1000 и отобразив следующие 100 записей.
+
+Сортировка должна быть по номеру квартала, трети года, дате заказа (везде по возрастанию).
+
+Таблицы: Sales.Orders, Sales.OrderLines, Sales.Customers.
+*/
+
+select o.OrderID,
+	FORMAT(o.orderdate, 'd', 'ru') Orderdate,
+	datename(MONTH,o.orderdate) Month,
+	DATEPART(quarter,o.OrderDate) Quarter,
+	(MONTH(o.OrderDate)/5+1) Dekada ,
+	c.CustomerName
+from Sales.Orders o
+join Sales.OrderLines ol
+on o.OrderID = ol.OrderID
+join Sales.Customers c
+on o.CustomerID = c.CustomerID
+where (ol.UnitPrice > '100' or ol.Quantity > '20') and ol.PickingCompletedWhen is not null
+order by Quarter,dekada,Orderdate
+
+
+select o.OrderID,
+	FORMAT(o.orderdate, 'd', 'ru') Orderdate,
+	datename(MONTH,o.orderdate) Month,
+	DATEPART(quarter,o.OrderDate) Quarter,
+	(MONTH(o.OrderDate)/5+1) Dekada,
+	sc.CustomerName
+from Sales.Orders o
+join Sales.OrderLines ol
+on o.OrderID = ol.OrderID
+join Sales.Customers sc
+on o.CustomerID = sc.CustomerID
+where (ol.UnitPrice > '100' or ol.Quantity > '20') and ol.PickingCompletedWhen is not null
+order by Quarter,dekada,Orderdate
+offset 1000 rows fetch first 100 rows only
+
+/*
+4. Заказы поставщикам (Purchasing.Suppliers),
+которые должны быть исполнены (ExpectedDeliveryDate) в январе 2013 года
+с доставкой "Air Freight" или "Refrigerated Air Freight" (DeliveryMethodName)
+и которые исполнены (IsOrderFinalized).
+Вывести:
+* способ доставки (DeliveryMethodName)
+* дата доставки (ExpectedDeliveryDate)
+* имя поставщика
+* имя контактного лица принимавшего заказ (ContactPerson)
+
+Таблицы: Purchasing.Suppliers, Purchasing.PurchaseOrders, Application.DeliveryMethods, Application.People.
+*/
+
+select dm.DeliveryMethodName,po.ExpectedDeliveryDate, s.SupplierName, p.FullName
+from Purchasing.Suppliers s
+	join Purchasing.PurchaseOrders po
+		on po.SupplierID = s.SupplierID
+	join Application.DeliveryMethods dm
+		on dm.DeliveryMethodID = po.DeliveryMethodID
+	join Application.People p
+		on p.PersonID = po.ContactPersonID
+where (po.ExpectedDeliveryDate between '20130101' and '20130201')
+		and (dm.DeliveryMethodName = 'Air Freight' or dm.DeliveryMethodName = 'Refrigerated Air Freight') 
+		and po.IsOrderFinalized > 0
+
+/*
+5. Десять последних продаж (по дате продажи) с именем клиента и именем сотрудника,
+который оформил заказ (SalespersonPerson).
+Сделать без подзапросов.
+*/
+
+select top 10 c.CustomerName, p.FullName 
+from Sales.Orders o
+	join sales.Customers c
+	on c.CustomerID = o.CustomerID
+	join Application.People p 
+	on p.PersonID = o.SalespersonPersonID
+order by o.OrderID desc
+
+
+/*
+6. Все ид и имена клиентов и их контактные телефоны,
+которые покупали товар "Chocolate frogs 250g".
+Имя товара смотреть в таблице Warehouse.StockItems.
+*/
+
+select c.CustomerID, c.CustomerName, c.PhoneNumber
+from Sales.OrderLines ol
+	join Warehouse.StockItems s
+	on s.StockItemID = ol.StockItemID
+	join Sales.Orders o
+	on o.OrderID = ol.OrderID
+	join Sales.Customers c
+	on c.CustomerID = o.CustomerID
+where s.StockItemName = 'Chocolate frogs 250g'
