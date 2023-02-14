@@ -22,7 +22,7 @@ select s.SupplierID,s.SupplierName
 from Purchasing.Suppliers s
 left join Purchasing.PurchaseOrders p 
 on p.SupplierID = s.SupplierID
-where s.DeliveryMethodID is null
+where p.DeliveryMethodID is null
 
 
 
