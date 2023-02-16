@@ -13,12 +13,11 @@ USE WideWorldImporters;
 
 select datename(year,i.InvoiceDate) as Year,
 datepart(MONTH,i.InvoiceDate) as Month,
-avg(il.UnitPrice) as 'Средняя цена',
-sum(il.UnitPrice) as 'Сумма'
+avg(il.UnitPrice*il.Quantity) as 'Средняя цена',
+sum(il.UnitPrice*il.Quantity) as 'Сумма'
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
-where year(i.InvoiceDate) = '2015' and month(i.InvoiceDate) = '04'
 group by i.InvoiceDate,il.UnitPrice
 
 /*
@@ -34,15 +33,15 @@ group by i.InvoiceDate,il.UnitPrice
 
 */
 select 
-year(i.InvoiceDate) as Year,
-MONTH(i.InvoiceDate) as Month,
-sum(il.unitprice) as summ
+datename(year,i.InvoiceDate) as Year,
+datepart(MONTH,i.InvoiceDate) as Month,
+sum(il.unitprice*il.Quantity) as summ
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
-group by i.InvoiceDate, il.UnitPrice
-having sum(il.unitprice) > 4600000
-order by year(i.InvoiceDate),MONTH(i.InvoiceDate)
+group by i.InvoiceDate, il.UnitPrice,il.Quantity
+having (il.unitprice*il.Quantity) > 4600000
+order by year, Month
 
 
 /*
@@ -65,8 +64,8 @@ order by year(i.InvoiceDate),MONTH(i.InvoiceDate)
 select year(i.InvoiceDate) year,
 MONTH(i.invoicedate) month,
 il.Description,
-il.UnitPrice,
-min(i.invoicedate),
+sum(il.UnitPrice*il.quantity) summ,
+min(i.invoicedate) firstdate,
 il.Quantity
 from Sales.Invoices i
 join Sales.InvoiceLines il
@@ -101,3 +100,14 @@ Year | Month | SalesTotal
 2015 | 12    | -
 
 */
+select year(i.InvoiceDate) year,
+	MONTH(i.invoicedate) month,
+	case when sum(il.UnitPrice*il.Quantity)>4600000 then (il.UnitPrice*il.Quantity)
+		else '-'
+		end
+from Sales.Invoices i
+join Sales.InvoiceLines il
+on il.InvoiceID = i.InvoiceID
+where year(i.InvoiceDate) = 2015
+group by i.InvoiceDate,il.UnitPrice,il.Quantity
+order by month
