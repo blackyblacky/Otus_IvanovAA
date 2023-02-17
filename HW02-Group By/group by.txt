@@ -39,9 +39,9 @@ sum(il.unitprice*il.Quantity) as summ
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
-group by i.InvoiceDate, il.UnitPrice,il.Quantity
-having (il.unitprice*il.Quantity) > 4600000
-order by year, Month
+group by datename(year,i.InvoiceDate),datepart(MONTH,i.InvoiceDate)
+having sum(il.unitprice*il.Quantity) > 4600000.00
+order by summ desc
 
 
 /*
