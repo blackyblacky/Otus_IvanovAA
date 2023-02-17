@@ -40,8 +40,8 @@ from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
 group by datename(year,i.InvoiceDate),datepart(MONTH,i.InvoiceDate)
-having sum(il.unitprice*il.Quantity) > 4600000.00
-order by summ desc
+having sum(il.unitprice*il.Quantity) > 4600000
+order by year, Month
 
 
 /*
@@ -64,14 +64,14 @@ order by summ desc
 select year(i.InvoiceDate) year,
 MONTH(i.invoicedate) month,
 il.Description,
-sum(il.UnitPrice*il.quantity) summ,
+sum(il.UnitPrice*il.quantity) summa,
 min(i.invoicedate) firstdate,
-il.Quantity
+sum(il.Quantity) kol
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
-where il.Quantity < 50
-group by year(i.InvoiceDate),MONTH(i.invoicedate),il.Description,il.UnitPrice,il.Quantity
+group by year(i.InvoiceDate),MONTH(i.invoicedate),il.Description
+having sum(il.Quantity) < 50
 
 -- ---------------------------------------------------------------------------
 -- Опционально
@@ -100,14 +100,15 @@ Year | Month | SalesTotal
 2015 | 12    | -
 
 */
-select year(i.InvoiceDate) year,
-	MONTH(i.invoicedate) month,
-	case when sum(il.UnitPrice*il.Quantity)>4600000 then (il.UnitPrice*il.Quantity)
+select datename(year,i.InvoiceDate) as Year,
+datepart(MONTH,i.InvoiceDate) as Month,
+	summa = case 
+		when sum(il.UnitPrice*il.Quantity)>4600000 then sum(il.UnitPrice*il.Quantity)
 		else '-'
-		end
+	end
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
-where year(i.InvoiceDate) = 2015
-group by i.InvoiceDate,il.UnitPrice,il.Quantity
-order by month
+where datename(year,i.InvoiceDate) = 2015
+group by datename(year,i.InvoiceDate), datepart(MONTH,i.InvoiceDate) 
+order by year, month
