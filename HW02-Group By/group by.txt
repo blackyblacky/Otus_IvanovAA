@@ -103,7 +103,7 @@ Year | Month | SalesTotal
 select datename(year,i.InvoiceDate) as Year,
 datepart(MONTH,i.InvoiceDate) as Month,
 	summa = case 
-		when sum(il.UnitPrice*il.Quantity)>4600000 then sum(il.UnitPrice*il.Quantity)
+		when sum(il.UnitPrice*il.Quantity)>4600000 then cast(sum(il.UnitPrice*il.Quantity) as nvarchar)
 		else '-'
 	end
 from Sales.Invoices i
