@@ -18,13 +18,14 @@ USE WideWorldImporters
 Нарастающий итог должен быть без оконной функции.
 */
 
-select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity), 
-		sum(il.unitprice*il.Quantity) over(order by il.unitprice, i.InvoiceID) as nar
+select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity) as Summa, sum(ll.UnitPrice*ll.Quantity) as RunningTotal
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
 join Sales.Customers c
 on c.CustomerID = i.CustomerID
+join Sales.InvoiceLines ll
+on ll.InvoiceID = il.InvoiceID and ll.InvoiceLineID <= il.InvoiceLineID
 where year(i.InvoiceDate) = '2015' and i.InvoiceDate between '20150311' and '20150328'
 group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantity
 
@@ -52,14 +53,19 @@ SET STATISTICS TIME OFF
 3. Вывести список 2х самых популярных продуктов (по количеству проданных) 
 в каждом месяце за 2016 год (по 2 самых популярных продукта в каждом месяце).
 */
-
-select top(2) with ties i.InvoiceDate,il.Description
+with Ccte as 
+(
+select month(i.InvoiceDate) as Mon,il.Description, 
+row_number() over (partition by month(i.InvoiceDate) order by sum(il.Quantity) desc) as RN
 from Sales.InvoiceLines il
 join Sales.Invoices i 
 on i.InvoiceID = il.InvoiceID
 where year(i.InvoiceDate) = 2016
 group by i.InvoiceDate, il.Description
-order by ROW_NUMBER() over( partition by il.description order by i.InvoiceDate)
+)
+select * from Ccte
+where Ccte.RN < 3
+
 
 /*
 4. Функции одним запросом
@@ -76,18 +82,16 @@ order by ROW_NUMBER() over( partition by il.description order by i.InvoiceDate)
 */
 
 select StockItemID, StockItemName,Brand, UnitPrice, 
-row_number() over (partition by StockItemName order by StockItemID) as 'Num'/*не понимаю как это сделать*/,
-(select sum(QuantityPerOuter) from Warehouse.StockItems) as 'Kol',
-/*не понимаю как это сделать*/
+row_number() over (partition by left(StockItemName,1) order by StockItemID) as 'Num',
+count(*) over(partition by QuantityPerOuter order by QuantityPerOuter) as 'Kol',
+COUNT(*) OVER (PARTITION BY LEFT(StockItemName, 1) ORDER BY LEFT(StockItemName, 1)) as CountByFirstCharName,
 lead(StockItemID) over (order by StockItemName) as 'NextID',
 lag(StockItemID) over (order by StockItemName)as 'LastID',
 lag(StockItemName, 2, 'No items') over (order by StockItemName) as 'LastID2',
 NTILE(30) over (partition by TypicalWeightPerUnit order by TypicalWeightPerUnit) as 'Group'
 from Warehouse.StockItems
-order by StockItemID, StockItemName, UnitPrice
-
-
-
+group by StockItemID, StockItemName, UnitPrice, Brand, TypicalWeightPerUnit, QuantityPerOuter
+order by NextID,LastID
 
 
 /*
