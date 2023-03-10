@@ -1,0 +1,93 @@
+USE WideWorldImporters
+
+/*
+1. Требуется написать запрос, который в результате своего выполнения 
+формирует сводку по количеству покупок в разрезе клиентов и месяцев.
+В строках должны быть месяцы (дата начала месяца), в столбцах - клиенты.
+
+Клиентов взять с ID 2-6, это все подразделение Tailspin Toys.
+Имя клиента нужно поменять так чтобы осталось только уточнение.
+Например, исходное значение "Tailspin Toys (Gasport, NY)" - вы выводите только "Gasport, NY".
+Дата должна иметь формат dd.mm.yyyy, например, 25.12.2019.
+
+Пример, как должны выглядеть результаты:
+-------------+--------------------+--------------------+-------------+--------------+------------
+InvoiceMonth | Peeples Valley, AZ | Medicine Lodge, KS | Gasport, NY | Sylvanite, MT | Jessie, ND
+-------------+--------------------+--------------------+-------------+--------------+------------
+01.01.2013   |      3             |        1           |      4      |      2        |     2
+01.02.2013   |      7             |        3           |      4      |      2        |     1
+-------------+--------------------+--------------------+-------------+--------------+------------
+*/
+
+select *
+from (select FORMAT(o.OrderDate,'d','ru') as InvoiceMonth,c.CustomerName as name, count(*) over(partition by month(o.orderdate) order by month(o.orderdate)) as kol
+    from Sales.Customers as c 
+    join Sales.Orders as o  
+    on o.CustomerID = c.CustomerID
+    where c.CustomerID in (2,3,4,5,6)
+	group by c.CustomerID, c.CustomerName,o.OrderDate
+) as klient
+pivot (count(kol)
+for name in ([Sylvanite, MT],[Peeples Valley, AZ],[Medicine Lodge, KS],[Gasport, NY],[Jessie, ND])) as pvt
+order by invoicemonth
+
+
+/*
+2. Для всех клиентов с именем, в котором есть "Tailspin Toys"
+вывести все адреса, которые есть в таблице, в одной колонке.
+
+Пример результата:
+----------------------------+--------------------
+CustomerName                | AddressLine
+----------------------------+--------------------
+Tailspin Toys (Head Office) | Shop 38
+Tailspin Toys (Head Office) | 1877 Mittal Road
+Tailspin Toys (Head Office) | PO Box 8975
+Tailspin Toys (Head Office) | Ribeiroville
+----------------------------+--------------------
+*/
+select CustomerName, adressline
+from (
+		select CustomerName, DeliveryAddressLine1
+		from Sales.Customers
+		where CustomerName like '%Tailspin Toys%'
+	) as name
+unpivot (adressline for name in (DeliveryAddressLine1)) as upvt
+order by CustomerName asc
+
+/*
+3. В таблице стран (Application.Countries) есть поля с цифровым кодом страны и с буквенным.
+Сделайте выборку ИД страны, названия и ее кода так, 
+чтобы в поле с кодом был либо цифровой либо буквенный код.
+
+Пример результата:
+--------------------------------
+CountryId | CountryName | Code
+----------+-------------+-------
+1         | Afghanistan | AFG
+1         | Afghanistan | 4
+3         | Albania     | ALB
+3         | Albania     | 8
+----------+-------------+-------
+*/
+
+select *
+from (
+		select CountryID, CountryName, IsoAlpha3Code,cast(IsoNumericCode as nvarchar) as cod
+		from Application.Countries
+	) as coun
+unpivot (code for name in (IsoAlpha3Code,cod )) as unpvt
+
+/*
+4. Выберите по каждому клиенту два самых дорогих товара, которые он покупал.
+В результатах должно быть ид клиета, его название, ид товара, цена, дата покупки.
+*/
+
+select c.CustomerID,c.CustomerName, st.StockItemID,st.Description,st.UnitPrice,st.OrderDate
+from Sales.Customers c
+cross apply ( select top(2) ol.StockItemID,ol.Description, ol.UnitPrice, o.OrderDate, row_number() over(partition by ol.unitprice order by ol.unitprice desc) as rn
+				from Sales.Orders o
+				join Sales.OrderLines ol
+				on ol.OrderID = o.OrderID
+				where o.CustomerID = c.CustomerID
+				) as st
