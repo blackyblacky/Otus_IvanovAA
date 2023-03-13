@@ -21,19 +21,17 @@ InvoiceMonth | Peeples Valley, AZ | Medicine Lodge, KS | Gasport, NY | Sylvanite
 
 select *
 from (select FORMAT(i.InvoiceDate,'d','ru') as InvoiceMonth,c.CustomerName as name, 
-	count(*) over(partition by i.invoiceid order by i.invoiceid) as kol
+	count(i.InvoiceID) over(partition by i.InvoiceDate order by i.InvoiceDate) as kol
     from Sales.Customers as c 
     join Sales.Invoices as i  
     on i.CustomerID = c.CustomerID
     where c.CustomerID in (2,3,4,5,6)
-	group by c.CustomerID, c.CustomerName,i.InvoiceDate, InvoiceID
+	group by c.CustomerID, c.CustomerName,i.InvoiceDate, i.InvoiceID
 ) as klient
 pivot (count(kol)
 for name in ([Sylvanite, MT],[Peeples Valley, AZ],[Medicine Lodge, KS],[Gasport, NY],[Jessie, ND])) as pvt
 order by invoicemonth
 
-/*В первом задании вместо таблицы Orders надо было взять Sales.Invoices и считать количество в Pivot по полю InvoiceID этой таблицы. 
-В остальном логика решения правильная.*/
 
 /*
 2. Для всех клиентов с именем, в котором есть "Tailspin Toys"
