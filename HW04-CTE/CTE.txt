@@ -12,7 +12,9 @@ select PersonID, FullName
 from Application.People
 where PersonID in (select SalespersonPersonID
 						from Sales.Invoices
-						where InvoiceDate <> '20150704')
+						where SalespersonPersonID not in (select SalespersonPersonID
+												from Sales. Invoices
+												where InvoiceDate = '20150704'))
 
 /*
 2. Выберите товары с минимальной ценой (подзапросом). Сделайте два варианта подзапроса. 
