@@ -20,17 +20,20 @@ InvoiceMonth | Peeples Valley, AZ | Medicine Lodge, KS | Gasport, NY | Sylvanite
 */
 
 select *
-from (select FORMAT(o.OrderDate,'d','ru') as InvoiceMonth,c.CustomerName as name, count(*) over(partition by month(o.orderdate) order by month(o.orderdate)) as kol
+from (select FORMAT(i.InvoiceDate,'d','ru') as InvoiceMonth,c.CustomerName as name, 
+	count(*) over(partition by i.invoiceid order by i.invoiceid) as kol
     from Sales.Customers as c 
-    join Sales.Orders as o  
-    on o.CustomerID = c.CustomerID
+    join Sales.Invoices as i  
+    on i.CustomerID = c.CustomerID
     where c.CustomerID in (2,3,4,5,6)
-	group by c.CustomerID, c.CustomerName,o.OrderDate
+	group by c.CustomerID, c.CustomerName,i.InvoiceDate, InvoiceID
 ) as klient
 pivot (count(kol)
 for name in ([Sylvanite, MT],[Peeples Valley, AZ],[Medicine Lodge, KS],[Gasport, NY],[Jessie, ND])) as pvt
 order by invoicemonth
 
+/*В первом задании вместо таблицы Orders надо было взять Sales.Invoices и считать количество в Pivot по полю InvoiceID этой таблицы. 
+В остальном логика решения правильная.*/
 
 /*
 2. Для всех клиентов с именем, в котором есть "Tailspin Toys"
@@ -48,12 +51,13 @@ Tailspin Toys (Head Office) | Ribeiroville
 */
 select CustomerName, adressline
 from (
-		select CustomerName, DeliveryAddressLine1
+		select CustomerName, DeliveryAddressLine1, DeliveryAddressLine2
 		from Sales.Customers
 		where CustomerName like '%Tailspin Toys%'
 	) as name
-unpivot (adressline for name in (DeliveryAddressLine1)) as upvt
+unpivot (adressline for name in (DeliveryAddressLine1,DeliveryAddressLine2)) as upvt
 order by CustomerName asc
+
 
 /*
 3. В таблице стран (Application.Countries) есть поля с цифровым кодом страны и с буквенным.
@@ -71,12 +75,13 @@ CountryId | CountryName | Code
 ----------+-------------+-------
 */
 
-select *
+select CountryID, CountryName, code
 from (
-		select CountryID, CountryName, IsoAlpha3Code,cast(IsoNumericCode as nvarchar) as cod
+		select CountryID, CountryName, cast(IsoAlpha3Code as nvarchar) as co,cast(IsoNumericCode as nvarchar) as cod
 		from Application.Countries
 	) as coun
-unpivot (code for name in (IsoAlpha3Code,cod )) as unpvt
+unpivot (code for name in (co,cod )) as unpvt
+
 
 /*
 4. Выберите по каждому клиенту два самых дорогих товара, которые он покупал.
