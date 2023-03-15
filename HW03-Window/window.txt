@@ -18,16 +18,20 @@ USE WideWorldImporters
 Нарастающий итог должен быть без оконной функции.
 */
 
-select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity) as Summa, sum(ll.UnitPrice*ll.Quantity) as RunningTotal
+select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity) as Summa, 
+(
+	select top(1) sum(ll.UnitPrice*ll.Quantity)
+	from Sales.InvoiceLines ll
+	where ll.InvoiceID = il.InvoiceID and ll.InvoiceLineID <= il.InvoiceLineID
+	group by ll.InvoiceID,ll.InvoiceLineID, il.InvoiceID,il.InvoiceLineID
+) as RunningTotal
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
 join Sales.Customers c
 on c.CustomerID = i.CustomerID
-join Sales.InvoiceLines ll
-on ll.InvoiceID = il.InvoiceID and ll.InvoiceLineID <= il.InvoiceLineID
 where year(i.InvoiceDate) = '2015' and i.InvoiceDate between '20150311' and '20150328'
-group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantity
+group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantityty
 
 
 /*
