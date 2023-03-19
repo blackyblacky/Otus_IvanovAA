@@ -1,0 +1,120 @@
+
+
+USE WideWorldImporters
+
+/*
+1. Довставлять в базу пять записей используя insert в таблицу Customers или Suppliers 
+*/
+
+insert into Sales.Customers([CustomerID],[CustomerName],[BillToCustomerID],[CustomerCategoryID],[PrimaryContactPersonID],[DeliveryMethodID],[DeliveryCityID]
+	  ,[PostalCityID]
+	  ,[AccountOpenedDate]
+	  ,[StandardDiscountPercentage]
+	  ,[IsStatementSent]
+      ,[IsOnCreditHold]
+	  ,[PaymentDays]
+      ,[PhoneNumber]
+	  ,[FaxNumber]
+	  ,[WebsiteURL]
+      ,[DeliveryAddressLine1]
+	  ,[DeliveryPostalCode]
+	  ,[PostalAddressLine1]
+	  ,[PostalPostalCode]
+      ,[LastEditedBy])
+values 
+(next value for sequences.CustomerID,'Petr 1','1061','5','3260','3','38185','38185',GETDATE(),'0','0','0','7','81111111111','81111111111','www.Petr1.ru','Shop 100','90111','PO BOX 111','90111','1'),
+(next value for sequences.CustomerID,'Ivan Grozniy','1061','6','3260','3','38185','38185',GETDATE(),'0','0','0','7','82222222222','82222222222','www.IvanGrozniy.ru','Shop 101','90222','PO BOX 222','90222','1'),
+(next value for sequences.CustomerID,'Ekaterina 2','1061','7','3260','3','38185','38185',GETDATE(),'0','0','0','7','83333333333','83333333333','www.Ekaterina2.ru','Shop 102','90333','PO BOX 333','90333','1'),
+(next value for sequences.CustomerID,'Nikolay 2','1061','4','3260','3','38185','38185',GETDATE(),'0','0','0','7','84444444444','84444444444','www.Nikolay2.ru','Shop 103','90444','PO BOX 444','90444','1'),
+(next value for sequences.CustomerID,'Lzhedmitriy','1061','3','3260','3','38185','38185',GETDATE(),'0','0','0','7','85555555555','85555555555','www.Lzhedmitriy.ru','Shop 104','90555','PO BOX 555','90555','1')
+
+
+/*
+2. Удалите одну запись из Customers, которая была вами добавлена
+*/
+
+delete from Sales.Customers
+where CustomerName = 'Lzhedmitriy'
+
+
+/*
+3. Изменить одну запись, из добавленных через UPDATE
+*/
+
+update Sales.Customers
+set DeliveryAddressLine1 = 'Shop 555'
+where CustomerID = 1106
+
+update Sales.Customers
+set PrimaryContactPersonID = '3261'
+where CustomerID = 1105
+
+/*
+4. Написать MERGE, который вставит вставит запись в клиенты, если ее там нет, и изменит если она уже есть
+*/
+
+insert into Application.People([PersonID]
+      ,[FullName]
+      ,[PreferredName]
+      ,[IsPermittedToLogon]
+      ,[IsExternalLogonProvider]
+      ,[IsSystemUser]
+      ,[IsEmployee]
+      ,[IsSalesperson]
+	  ,[PhoneNumber]
+      ,[LastEditedBy])
+values('3262','Ivan Grozniy','Ivan Grozniy','0','0','0','0','0','(206)555-2222','1')
+
+
+merge sales.customers as Target
+using(select personid,fullname,phonenumber from application.people
+	where personid = 3262)
+		as source (personid,fullname,phonenumber)
+	  on 
+	  (target.customername = source.fullname)
+when matched
+	then update set CustomerName = source.fullname,
+					primarycontactpersonid = source.personid,
+					phonenumber = source.phonenumber
+when not matched 
+	then insert (primarycontactpersonid,CustomerName,phonenumber)
+	values (source.personid,source.fullname,source.phonenumber)
+OUTPUT deleted.*, $action, inserted.*;
+
+
+
+
+/*
+5. Напишите запрос, который выгрузит данные через bcp out и загрузить через bulk insert
+*/
+
+
+-- To allow advanced options to be changed.
+EXEC sp_configure 'show advanced options', 1;  
+GO  
+-- To update the currently configured value for advanced options.  
+RECONFIGURE;  
+GO  
+-- To enable the feature.  
+EXEC sp_configure 'xp_cmdshell', 1;  
+GO  
+-- To update the currently configured value for this feature.  
+RECONFIGURE;  
+GO  
+
+SELECT @@SERVERNAME
+
+exec master..xp_cmdshell 'bcp "[WideWorldImporters].Sales.Customers" out  "C:\Ivanov\Customers1.txt" -T -w -t, -S SERV-WMS1'
+
+	BULK INSERT [WideWorldImporters].[Sales].[Customersdemo]
+				   FROM "C:\Ivanov\Customers1.txt"
+				   WITH 
+					 (
+						BATCHSIZE = 1000, 
+						DATAFILETYPE = 'widechar',
+						FIELDTERMINATOR = ',',
+						ROWTERMINATOR ='\n',
+						KEEPNULLS,
+						TABLOCK        
+					  );
+--Таблицу не стал создавать, так как на рабочем ноутбуке нет прав на выгрузку таблиц через bcp
