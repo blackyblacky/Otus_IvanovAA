@@ -17,40 +17,43 @@ USE WideWorldImporters
 Продажи можно взять из таблицы Invoices.
 Нарастающий итог должен быть без оконной функции.
 */
+SET STATISTICS IO, TIME ON
 
 select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity) as Summa, 
 (
-	select top(1) sum(ll.UnitPrice*ll.Quantity)
-	from Sales.InvoiceLines ll
-	where ll.InvoiceID = il.InvoiceID and ll.InvoiceLineID <= il.InvoiceLineID
-	group by ll.InvoiceID,ll.InvoiceLineID, il.InvoiceID,il.InvoiceLineID
+	select sum(ll.UnitPrice*ll.Quantity)
+	from Sales.Invoices ii
+	join sales.InvoiceLines ll on ii.InvoiceID = ll.InvoiceID
+	where ii.InvoiceDate<=EOMONTH(i.InvoiceDate) and ii.InvoiceDate >= '20150101'	
 ) as RunningTotal
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
 join Sales.Customers c
 on c.CustomerID = i.CustomerID
-where year(i.InvoiceDate) = '2015' and i.InvoiceDate between '20150311' and '20150328'
-group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantityty
+where i.InvoiceDate >= '20150101' 
+group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantity
+order by i.InvoiceID, i.InvoiceDate
 
 
 /*
 2. Сделайте расчет суммы нарастающим итогом в предыдущем запросе с помощью оконной функции.
    Сравните производительность запросов 1 и 2 с помощью set statistics time, io on
 */
-SET STATISTICS TIME ON
+SET STATISTICS IO, TIME ON
 
 select i.InvoiceID, c.CustomerName, i.InvoiceDate, sum(il.unitprice * il.Quantity), 
-		sum(il.unitprice*il.Quantity) over(order by il.unitprice, i.InvoiceID) as nar
+		sum(il.unitprice*il.Quantity) OVER(ORDER BY YEAR(i.InvoiceDate),MONTH(i.InvoiceDate)) as nar
 from Sales.Invoices i
 join Sales.InvoiceLines il
 on il.InvoiceID = i.InvoiceID
 join Sales.Customers c
 on c.CustomerID = i.CustomerID
-where year(i.InvoiceDate) = '2015' and i.InvoiceDate between '20150311' and '20150328'
+where i.InvoiceDate >= '20150101' 
 group by i.InvoiceID,i.InvoiceDate, c.CustomerName, il.unitprice ,il.Quantity
+order by i.InvoiceID, i.InvoiceDate
 
-SET STATISTICS TIME OFF
+
 
 
 /*
