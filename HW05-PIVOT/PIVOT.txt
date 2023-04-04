@@ -19,7 +19,7 @@ InvoiceMonth | Peeples Valley, AZ | Medicine Lodge, KS | Gasport, NY | Sylvanite
 -------------+--------------------+--------------------+-------------+--------------+------------
 */
 
-select *
+/*select *
 from (select FORMAT(i.InvoiceDate,'d','ru') as InvoiceMonth,c.CustomerName as name, 
 	count(i.InvoiceID) over(partition by i.InvoiceDate order by i.InvoiceDate) as kol
     from Sales.Customers as c 
@@ -30,7 +30,25 @@ from (select FORMAT(i.InvoiceDate,'d','ru') as InvoiceMonth,c.CustomerName as na
 ) as klient
 pivot (count(kol)
 for name in ([Sylvanite, MT],[Peeples Valley, AZ],[Medicine Lodge, KS],[Gasport, NY],[Jessie, ND])) as pvt
-order by invoicemonth
+order by invoicemonth*/
+
+SELECT * FROM
+(SELECT
+InvoiceID
+,substring(cust.CustomerName, charindex('(',cust.CustomerName)+1,charindex(')',cust.CustomerName)-charindex('(',cust.CustomerName)-1) as 'CustomerLocation'
+,FORMAT(DATEFROMPARTS(YEAR(InvoiceDate),Month(InvoiceDate),1), 'dd.MM.yyyy') as 'InvoinceMonth'
+FROM
+WideWorldImporters.Sales.Invoices as inv
+LEFT JOIN WideWorldImporters.Sales.Customers cust on inv.CustomerID = cust.CustomerID
+WHERE inv.CustomerID between 2 and 6
+) as SalesData
+PIVOT
+(
+count(InvoiceID)
+FOR CustomerLocation IN ([Peeples Valley, AZ], [Medicine Lodge, KS], [Gasport, NY], [Sylvanite, MT], [Jessie, ND])
+)
+as SalesPerMonth
+ORDER BY year(InvoinceMonth), Month(InvoinceMonth);
 
 
 /*
