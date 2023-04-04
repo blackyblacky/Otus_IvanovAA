@@ -1,0 +1,47 @@
+USE WideWorldImporters
+
+/*
+
+Это задание из занятия "Операторы CROSS APPLY, PIVOT, UNPIVOT."
+Нужно для него написать динамический PIVOT, отображающий результаты по всем клиентам.
+Имя клиента указывать полностью из поля CustomerName.
+
+Требуется написать запрос, который в результате своего выполнения 
+формирует сводку по количеству покупок в разрезе клиентов и месяцев.
+В строках должны быть месяцы (дата начала месяца), в столбцах - клиенты.
+
+Дата должна иметь формат dd.mm.yyyy, например, 25.12.2019.
+
+Пример, как должны выглядеть результаты:
+-------------+--------------------+--------------------+----------------+----------------------
+InvoiceMonth | Aakriti Byrraju    | Abel Spirlea       | Abel Tatarescu | ... (другие клиенты)
+-------------+--------------------+--------------------+----------------+----------------------
+01.01.2013   |      3             |        1           |      4         | ...
+01.02.2013   |      7             |        3           |      4         | ...
+-------------+--------------------+--------------------+----------------+----------------------
+*/
+
+declare @dyn as nvarchar(max)
+declare @custname as nvarchar(max)
+
+
+select @custname = ISNULL(@custname + ',','') + QUOTENAME(CustomerName)
+from (select CustomerName 
+		from Sales.Customers) as Customer
+select @custname as cust
+set @dyn = 
+N'select InvoinceMonth,'+ @custname +' from
+(SELECT
+i.InvoiceID, c.CustomerName,
+CONVERT(varchar(10), DATEADD(month, DATEDIFF(month, 0, invoicedate), 0), 104) as InvoinceMonth
+FROM Sales.Invoices as i
+LEFT JOIN Sales.Customers as c on i.CustomerID = c.CustomerID
+where c.CustomerID = 7 ) as pvt
+PIVOT
+(
+count(InvoiceID)
+FOR Customername IN ('+ @custname +')
+) as custsales
+ORDER BY year(InvoinceMonth), Month(InvoinceMonth)
+'
+exec sp_executesql @dyn
