@@ -36,7 +36,7 @@ i.InvoiceID, c.CustomerName,
 CONVERT(varchar(10), DATEADD(month, DATEDIFF(month, 0, invoicedate), 0), 104) as InvoinceMonth
 FROM Sales.Invoices as i
 LEFT JOIN Sales.Customers as c on i.CustomerID = c.CustomerID
-where c.CustomerID = 7 ) as pvt
+) as pvt
 PIVOT
 (
 count(InvoiceID)
