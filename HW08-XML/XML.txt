@@ -24,32 +24,32 @@ USE WideWorldImporters
 DECLARE @xml XML
 
 SELECT @xml = BulkColumn
-FROM OPENROWSET(BULK 'C:\Ivanov\StockItems.xml', SINGLE_NCLOB) AS x;
+FROM OPENROWSET(BULK 'C:\SQL2022\StockItems.xml', SINGLE_CLOB) AS x;
+
 
 DECLARE @doc int
-
 EXEC sp_xml_preparedocument @doc OUTPUT, @xml;
 
 MERGE Warehouse.StockItems AS Target
 USING 
 (
 SELECT DISTINCT StockItemName, SupplierID, UnitPackageID, OuterPackageID, QuantityPerOuter, TypicalWeightPerUnit, LeadTimeDays, IsChillerStock, TaxRate, UnitPrice
-FROM OPENXML(@doc, '/Root/StockItem',2)
-WITH (StockItemName NVARCHAR(100) '@StockItemName', 
+FROM OPENXML(@doc, N'/StockItems/Item',2)
+WITH (StockItemName NVARCHAR(100) '@Name', 
           SupplierID INT '@SupplierID', 
-          UnitPackageID INT '@UnitPackageID', 
-          OuterPackageID INT '@OuterPackageID', 
-          QuantityPerOuter INT '@QuantityPerOuter', 
-          TypicalWeightPerUnit DECIMAL(18,3) '@TypicalWeightPerUnit', 
-          LeadTimeDays INT '@LeadTimeDays', 
-          IsChillerStock BIT '@IsChillerStock', 
-          TaxRate DECIMAL(18,3) '@TaxRate', 
-          UnitPrice DECIMAL(18,2) '@UnitPrice'
+          UnitPackageID INT 'Package/UnitPackageID', 
+          OuterPackageID INT 'Package/OuterPackageID', 
+          QuantityPerOuter INT 'Package/QuantityPerOuter', 
+          TypicalWeightPerUnit DECIMAL(18,3) 'Package/TypicalWeightPerUnit', 
+          LeadTimeDays INT 'LeadTimeDays', 
+          IsChillerStock BIT 'IsChillerStock', 
+          TaxRate DECIMAL(18,3) 'TaxRate', 
+          UnitPrice DECIMAL(18,2) 'UnitPrice'
           )
 ) AS Source
-ON Target.StockItemName = Source.StockItemName
+ON  Target.StockItemName = Source.StockItemName and Target.SupplierID = Source.SupplierID
 WHEN MATCHED THEN
-    UPDATE SET Target.SupplierID = Source.SupplierID, 
+    UPDATE SET Target.StockItemName = Source.StockItemName, 
                Target.UnitPackageID = Source.UnitPackageID, 
                Target.OuterPackageID = Source.OuterPackageID, 
                Target.QuantityPerOuter = Source.QuantityPerOuter, 
@@ -66,29 +66,28 @@ EXEC sp_xml_removedocument @doc;
 
 --XQuery
 
-DECLARE @xml XML
+DECLARE @xml1 XML
 
-SELECT @xml = BulkColumn
-FROM OPENROWSET(BULK 'C:\Ivanov\StockItems.xml', SINGLE_NCLOB) AS x;
+SELECT @xml1 = BulkColumn
+FROM OPENROWSET(BULK 'C:\SQL2022\StockItems.xml', SINGLE_CLOB) AS x;
 
 MERGE Warehouse.StockItems AS Target
 USING (
-    SELECT DISTINCT StockItem.value('(StockItemName)[1]', 'NVARCHAR(MAX)') AS StockItemName,
-                    StockItem.value('(SupplierID)[1]', 'INT') AS SupplierID,
-                    StockItem.value('(UnitPackageID)[1]', 'INT') AS UnitPackageID,
-                    StockItem.value('(OuterPackageID)[1]', 'INT') AS OuterPackageID,
-                    StockItem.value('(QuantityPerOuter)[1]', 'INT') AS QuantityPerOuter,
-                    StockItem.value('(TypicalWeightPerUnit)[1]', 'DECIMAL(18,2)') AS TypicalWeightPerUnit,
-                    StockItem.value('(LeadTimeDays)[1]', 'INT') AS LeadTimeDays,
-                    StockItem.value('(IsChillerStock)[1]', 'BIT') AS IsChillerStock,
-                    StockItem.value('(TaxRate)[1]', 'DECIMAL(18,2)') AS TaxRate,
-                    StockItem.value('(UnitPrice)[1]', 'DECIMAL(18,2)') AS UnitPrice
-    FROM @xml.nodes('/Root/StockItem') AS X(StockItem)
+    SELECT DISTINCT StockItems.value('(Item/Name)[1]', 'NVARCHAR(100)') AS StockItemName,
+                    StockItems.value('(SupplierID)[1]', 'INT') AS SupplierID,
+                    StockItems.value('(Package/UnitPackageID)[1]', 'INT') AS UnitPackageID,
+                    StockItems.value('(Package/OuterPackageID)[1]', 'INT') AS OuterPackageID,
+                    StockItems.value('(Package/QuantityPerOuter)[1]', 'INT') AS QuantityPerOuter,
+                    StockItems.value('(Package/TypicalWeightPerUnit)[1]', 'DECIMAL(18,3)') AS TypicalWeightPerUnit,
+                    StockItems.value('(LeadTimeDays)[1]', 'INT') AS LeadTimeDays,
+                    StockItems.value('(IsChillerStock)[1]', 'BIT') AS IsChillerStock,
+                    StockItems.value('(TaxRate)[1]', 'DECIMAL(18,3)') AS TaxRate,
+                    StockItems.value('(UnitPrice)[1]', 'DECIMAL(18,2)') AS UnitPrice
+    FROM @xml1.nodes(N'/StockItems/Item') AS X(StockItems)
 ) AS Source
-ON Target.StockItemName = Source.StockItemName
+ON Target.StockItemName = Source.StockItemName and Target.SupplierID = Source.SupplierID
 WHEN MATCHED THEN
-    UPDATE SET Target.SupplierID = Source.SupplierID, 
-               Target.UnitPackageID = Source.UnitPackageID, 
+    UPDATE SET Target.UnitPackageID = Source.UnitPackageID, 
                Target.OuterPackageID = Source.OuterPackageID, 
                Target.QuantityPerOuter = Source.QuantityPerOuter, 
                Target.TypicalWeightPerUnit = Source.TypicalWeightPerUnit, 
@@ -104,9 +103,23 @@ WHEN NOT MATCHED THEN
 /*
 2. Выгрузить данные из таблицы StockItems в такой же xml-файл, как StockItems.xml
 */
+select StockItemName as [Item/@Name]
+		,StockItemID as StockItemID
+		,UnitPackageID as [Package/UnitPackageID]
+		,OuterPackageID as [Package/OuterPackageID]
+		,QuantityPerOuter as [Package/QuantityPerOuter]
+		,TypicalWeightPerUnit as [Package/TypicalWeightPerUnit]
+		,LeadTimeDays as [LeadTimeDays]
+		,IsChillerStock as [IsChillerStock]
+		,TaxRate as [TaxRate]
+		,UnitPrice as [UnitPrice] 
+from Warehouse.StockItems 
+for xml path('Item'), root('StockItems')
 
-exec master..xp_cmdshell 'bcp "[WideWorldImporters].warehouse.stockitems" out  "C:\Ivanov\Customers1.txt" -T -w -t, -S SERV-WMS1'
 
+DECLARE @xm NVARCHAR(4000)
+set @xm = 'bcp "'+ N'select StockItemName as [Item/@Name],StockItemID as StockItemID,UnitPackageID as [Package/UnitPackageID],OuterPackageID as [Package/OuterPackageID],QuantityPerOuter as [Package/QuantityPerOuter],TypicalWeightPerUnit as [Package/TypicalWeightPerUnit],LeadTimeDays as [LeadTimeDays],IsChillerStock as [IsChillerStock],TaxRate as [TaxRate],UnitPrice as [UnitPrice] from Warehouse.StockItems for xml path(Item), root(StockItems)'+'" queryout "C:\Ivanov\StockItems.xml" -T -w -t, -S DESKTOP-457DR4F'
+EXEC xp_cmdshell @xm
 
 /*
 3. В таблице Warehouse.StockItems в колонке CustomFields есть данные в JSON.
@@ -148,5 +161,3 @@ SELECT StockItemID, StockItemName, CustomFields,
       JSON_VALUE(CustomFields, '$.Tags[0]') AS FirstTag
 FROM Warehouse.StockItems
 WHERE JSON_VALUE(CustomFields, '$.Tags[0]') = 'Vintage'
-
-
