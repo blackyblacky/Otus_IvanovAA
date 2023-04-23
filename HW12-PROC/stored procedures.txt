@@ -1,0 +1,95 @@
+USE WideWorldImporters;
+
+
+/*
+1.Написать функцию возвращающую Клиента с наибольшей суммой покупки.
+*/
+CREATE FUNCTION [dbo].[get_max_purchase_customer]()
+returns varchar(100) 
+as
+begin
+return
+(
+	select CustomerName
+	from Sales.Customers
+	where CustomerName =(select top(1) c.CustomerName
+			from Sales.InvoiceLines i
+			join Sales.Invoices ii on ii.InvoiceID = i.InvoiceID
+			join Sales.Customers c on c.CustomerID = ii.CustomerID
+			group by c.CustomerName,i.InvoiceID
+			order by sum(i.UnitPrice*i.Quantity) desc)
+)	
+end
+
+/*
+2.Написать хранимую процедуру с входящим параметром СustomerID, выводящую сумму покупки по этому клиенту.
+Использовать таблицы :
+Sales.Customers
+Sales.Invoices
+Sales.InvoiceLines
+*/
+CREATE PROCEDURE [dbo].[Customersum]
+
+@CustomerID int = '7'
+
+as
+
+select c.CustomerName, sum(i.UnitPrice*i.Quantity) as summa
+from Sales.InvoiceLines i
+join Sales.Invoices ii on ii.InvoiceID = i.InvoiceID
+join Sales.Customers c on c.CustomerID = ii.CustomerID
+where c.CustomerID = @CustomerID
+group by c.CustomerName
+/*
+3.Создать одинаковую функцию и хранимую процедуру, посмотреть в чем разница в производительности и почему.
+*/
+CREATE FUNCTION [dbo].[func]()
+RETURNS TABLE  
+AS
+RETURN   
+(   
+    select StockItemID,
+	StockItemName
+	from Warehouse.StockItems
+	where StockItemName like '%urgent%' or StockItemName like 'Animal%'
+)  
+
+CREATE PROCEDURE [dbo].[prod]
+AS
+select StockItemID,
+StockItemName
+from Warehouse.StockItems
+where StockItemName like '%urgent%' or StockItemName like 'Animal%'
+
+SET STATISTICS IO, TIME ON
+select * from dbo.func
+exec dbo.prod
+-- Разницы нет, но наверное надо более тяжелый запрос написать?
+
+/*
+4.Создайте табличную функцию покажите как ее можно вызвать для каждой строки result set'а без использования цикла.
+*/
+CREATE FUNCTION [dbo].[custinfo](@customerid int)
+RETURNS TABLE  
+AS
+return
+(	
+	select CustomerID,CustomerName,PhoneNumber,WebsiteURL from Sales.Customers
+	where CustomerID = @customerid
+)
+
+select i.InvoiceID,o.*
+from Sales.Invoices i 
+cross apply dbo.custinfo(i.CustomerID) as o
+
+with cte as
+(
+select i.InvoiceID,o.*, ROW_NUMBER() over(partition by i.customerid order by i.customerid) as rn
+from Sales.Invoices i 
+cross apply dbo.custinfo(i.CustomerID) as o
+) 
+select * from cte
+where cte.rn<2
+/*
+5.Опционально. Во всех процедурах укажите какой уровень изоляции транзакций вы бы использовали и почему.
+*/
