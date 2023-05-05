@@ -56,23 +56,23 @@ SELECT StockItemName, SupplierID, UnitPackageID, OuterPackageID, QuantityPerOute
     TypicalWeightPerUnit, LeadTimeDays, IsChillerStock, TaxRate, UnitPrice
 FROM OPENXML(@hDoc, 'StockItems/Item', 2)
 WITH (
-    StockItemName VARCHAR(100),
-    SupplierID INT,
-    UnitPackageID INT,
-    OuterPackageID INT,
-    QuantityPerOuter INT,
-    TypicalWeightPerUnit DECIMAL(18,3),
-    LeadTimeDays INT,
-    IsChillerStock BIT,
-    TaxRate DECIMAL(18,3),
-    UnitPrice DECIMAL(18,2)
+    [StockItemName] VARCHAR(100) '@Name',
+    [SupplierID] INT 'SupplierID',
+    [UnitPackageID] INT 'Package/UnitPackageID',
+    [OuterPackageID] INT 'Package/OuterPackageID',
+    [QuantityPerOuter] INT 'Package/QuantityPerOuter',
+    [TypicalWeightPerUnit] DECIMAL(18,3) 'Package/QuantityPerOuter',
+    [LeadTimeDays] INT 'LeadTimeDays',
+    [IsChillerStock] BIT 'IsChillerStock',
+    [TaxRate] DECIMAL(18,3) 'TaxRate',
+    [UnitPrice] DECIMAL(18,2) 'UnitPrice'
 )
 
 EXEC sp_xml_removedocument @hDoc
 
 MERGE Warehouse.StockItems AS target
 USING #StockItemsTemp AS source
-ON (target.StockItemName = source.StockItemName)
+ON (target.StockItemName = source.StockItemName COLLATE SQL_Latin1_General_CP1_CI_AS)
 WHEN MATCHED THEN
     UPDATE SET
         target.SupplierID = source.SupplierID,
@@ -112,27 +112,57 @@ WHEN NOT MATCHED THEN
 DROP TABLE #StockItemsTemp;
 
 --XQuery
-
+CREATE TABLE #StockItemsTemp1 (
+    StockItemName VARCHAR(100),
+    SupplierID INT,
+    UnitPackageID INT,
+    OuterPackageID INT,
+    QuantityPerOuter INT,
+    TypicalWeightPerUnit DECIMAL(18,3),
+    LeadTimeDays INT,
+    IsChillerStock BIT,
+    TaxRate DECIMAL(18,3),
+    UnitPrice DECIMAL(18,2)
+)
 DECLARE @xml1 XML
-
 SELECT @xml1 = BulkColumn
-FROM OPENROWSET(BULK 'C:\SQL2022\StockItems.xml', SINGLE_CLOB) AS x;
+FROM OPENROWSET(BULK 'C:\SQL2022\StockItems.xml', SINGLE_BLOB) x
+
+DECLARE @hDoc1 INT
+EXEC sp_xml_preparedocument @hDoc1 OUTPUT, @xml1
+
+INSERT INTO #StockItemsTemp1 (
+    StockItemName,
+    SupplierID,
+    UnitPackageID,
+    OuterPackageID,
+    QuantityPerOuter,
+    TypicalWeightPerUnit,
+    LeadTimeDays,
+    IsChillerStock,
+    TaxRate,
+    UnitPrice
+)
+SELECT x.StockItems.value('(@Name)', 'NVARCHAR(100)') AS [StockItemName],
+                    x.StockItems.value('(SupplierID)[1]', 'INT') AS [SupplierID],
+                    x.StockItems.value('(Package/UnitPackageID)[1]', 'INT') AS [UnitPackageID],
+                    x.StockItems.value('(Package/OuterPackageID)[1]', 'INT') AS [OuterPackageID],
+                    x.StockItems.value('(Package/QuantityPerOuter)[1]', 'INT') AS [QuantityPerOuter],
+                    x.StockItems.value('(Package/TypicalWeightPerUnit)[1]', 'DECIMAL(18,3)') AS [TypicalWeightPerUnit],
+                    x.StockItems.value('(LeadTimeDays)[1]', 'INT') AS [LeadTimeDays],
+                    x.StockItems.value('(IsChillerStock)[1]', 'BIT') AS [IsChillerStock],
+                    x.StockItems.value('(TaxRate)[1]', 'DECIMAL(18,3)') AS [TaxRate],
+                    x.StockItems.value('(UnitPrice)[1]', 'DECIMAL(18,2)') AS [UnitPrice]
+ FROM @xml1.nodes(N'/StockItems/Item') AS X(StockItems)
+
+select * from #StockItemsTemp1
+
+EXEC sp_xml_removedocument @hDoc1
+
 
 MERGE Warehouse.StockItems AS Target
-USING (
-    SELECT DISTINCT StockItems.value('(@name)[1]', 'NVARCHAR(100)') AS StockItemName,
-                    StockItems.value('(SupplierID)[1]', 'INT') AS SupplierID,
-                    StockItems.value('(Package/UnitPackageID)[1]', 'INT') AS UnitPackageID,
-                    StockItems.value('(Package/OuterPackageID)[1]', 'INT') AS OuterPackageID,
-                    StockItems.value('(Package/QuantityPerOuter)[1]', 'INT') AS QuantityPerOuter,
-                    StockItems.value('(Package/TypicalWeightPerUnit)[1]', 'DECIMAL(18,3)') AS TypicalWeightPerUnit,
-                    StockItems.value('(LeadTimeDays)[1]', 'INT') AS LeadTimeDays,
-                    StockItems.value('(IsChillerStock)[1]', 'BIT') AS IsChillerStock,
-                    StockItems.value('(TaxRate)[1]', 'DECIMAL(18,3)') AS TaxRate,
-                    StockItems.value('(UnitPrice)[1]', 'DECIMAL(18,2)') AS UnitPrice
-    FROM @xml1.nodes(N'/StockItems/Item') AS X(StockItems)
-) AS Source
-ON Target.StockItemName = Source.StockItemName
+USING #StockItemsTemp1 AS Source
+ON Target.StockItemName = Source.StockItemName COLLATE SQL_Latin1_General_CP1_CI_AS
 WHEN MATCHED THEN
     UPDATE SET Target.SupplierID = Source.SupplierID,
 			   Target.UnitPackageID = Source.UnitPackageID, 
@@ -147,7 +177,7 @@ WHEN NOT MATCHED THEN
     INSERT (StockItemName, SupplierID, UnitPackageID, OuterPackageID, QuantityPerOuter, TypicalWeightPerUnit, LeadTimeDays, IsChillerStock, TaxRate, UnitPrice)
     VALUES (Source.StockItemName, Source.SupplierID, Source.UnitPackageID, Source.OuterPackageID, Source.QuantityPerOuter, Source.TypicalWeightPerUnit, Source.LeadTimeDays, Source.IsChillerStock, Source.TaxRate, Source.UnitPrice);
 
-
+drop table #StockItemsTemp1
 /*
 2. Выгрузить данные из таблицы StockItems в такой же xml-файл, как StockItems.xml
 */
