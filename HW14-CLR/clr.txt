@@ -1,0 +1,46 @@
+/*
+Домашнее задание по курсу MS SQL Server Developer в OTUS.
+
+Занятие "13 - CLR".
+
+
+2)Взять готовые исходники из какой-нибудь статьи, скомпилировать, подключить dll, продемонстрировать использование.
+Например: https://habr.com/ru/post/88396/
+*/
+USE WideWorldImporters;
+
+-- Включаем CLR
+EXEC sp_configure 'show advanced options', 1;
+GO
+RECONFIGURE;
+GO
+
+EXEC sp_configure 'clr enabled', 1;
+EXEC sp_configure 'clr strict security', 0;
+GO
+RECONFIGURE;
+GO
+-- Для возможности создания сборок с EXTERNAL_ACCESS или UNSAFE
+ALTER DATABASE WideWorldImporters SET TRUSTWORTHY ON; 
+
+-- Подключаем dll 
+CREATE ASSEMBLY HABRAssembly
+FROM 'C:\cs\cl1\cl1\bin\Debug\cl1.dll'
+WITH PERMISSION_SET = SAFE;  
+
+-- Посмотреть подключенные сборки (SSMS: <DB> -> Programmability -> Assemblies)
+SELECT * FROM sys.assemblies;
+GO
+
+--создание функции
+CREATE FUNCTION [dbo].cl1(@text [nvarchar](max), @delimiter [nchar](1))
+RETURNS TABLE (
+part nvarchar(max),
+ID_ODER int
+) WITH EXECUTE AS CALLER
+AS
+EXTERNAL NAME HABRAssembly.UserDefinedFunctions.SplitString
+go
+
+select * from dbo.cl1('21321.123,12312,12412.324,123,1,0,32432,457,567,213432,567568,sdfsd,234,ghhjm,4567456j,ewr234',',')
+
