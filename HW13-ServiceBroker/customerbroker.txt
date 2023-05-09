@@ -1,0 +1,185 @@
+USE WideWorldImporters;
+--new table for report
+create table ReportCustomer(CustomerID int, CustomerName nvarchar(100), OrderCount int)
+
+
+CREATE MESSAGE TYPE
+[//WWI/SB/RequestM]
+VALIDATION=WELL_FORMED_XML;
+
+CREATE MESSAGE TYPE
+[//WWI/SB/ReplyM]
+VALIDATION=WELL_FORMED_XML; 
+
+CREATE CONTRACT [//WWI/SB/Contract1]
+      ([//WWI/SB/RequestM]
+         SENT BY INITIATOR,
+       [//WWI/SB/ReplyM]
+         SENT BY TARGET
+      );
+--QUEUE
+CREATE QUEUE TargetQueue
+
+CREATE SERVICE [//WWI/SB/TargetService1]
+       ON QUEUE TargetQueue
+       ([//WWI/SB/Contract1]);
+
+CREATE QUEUE InitiatorQueue;
+
+CREATE SERVICE [//WWI/SB/InitiatorService1]
+       ON QUEUE InitiatorQueue
+       ([//WWI/SB/Contract1]);
+GO
+--dialogue start procedure
+CREATE PROCEDURE Sales.SendNewCustomer
+	@CustomerID INT
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+    --Sending a Request Message to the Target	
+	DECLARE @InitDlgHdle UNIQUEIDENTIFIER;
+	DECLARE @RequestM NVARCHAR(4000);
+	
+	BEGIN TRAN 
+
+	--Prepare the Message
+	SELECT @RequestM = (SELECT CustomerID
+							  FROM Sales.Customers AS cust
+							  WHERE CustomerID = @CustomerID
+							  FOR XML AUTO, root('RequestMessage')); 
+	
+	--Determine the Initiator Service, Target Service and the Contract 
+	BEGIN DIALOG @InitDlgHdle
+	FROM SERVICE
+	[//WWI/SB/InitiatorService1]
+	TO SERVICE
+	'//WWI/SB/TargetService1'
+	ON CONTRACT
+	[//WWI/SB/Contract1]
+	WITH ENCRYPTION=OFF; 
+
+	--Send the Message
+	SEND ON CONVERSATION @InitDlgHdle 
+	MESSAGE TYPE
+	[//WWI/SB/RequestM]
+	(@RequestM);
+	
+	SELECT @RequestM AS SentRequestMessage;
+	
+	COMMIT TRAN 
+END
+GO
+
+--activation procedure
+ALTER PROCEDURE Sales.GetNewCustomer
+AS
+BEGIN
+
+	DECLARE @TargetDlgHandle UNIQUEIDENTIFIER,
+			@Message NVARCHAR(4000),
+			@MessageType Sysname,
+			@ReplyM NVARCHAR(4000),
+			@ReplyMessageName Sysname,
+			@CustomerID INT,
+			@xml XML; 
+	
+	BEGIN TRAN; 
+
+	--Receive message from Initiator
+	RECEIVE TOP(1)
+		@TargetDlgHandle = Conversation_Handle,
+		@Message = Message_Body,
+		@MessageType = Message_Type_Name
+	FROM dbo.TargetQueue; 
+
+	SELECT @Message;
+
+	SET @xml = CAST(@Message AS XML);
+
+	SELECT @CustomerID = R.Cu.value('@CustomerID','INT')
+	FROM @xml.nodes('/RequestMessage/cust') as R(Cu);
+
+	IF EXISTS 
+	(
+		select c.CustomerID,c.CustomerName,count(*) as ordercount
+		from Sales.Orders o
+		join Sales.Customers c on c.CustomerID = o.CustomerID
+		where c.CustomerID = @CustomerID
+		group by c.CustomerName,c.CustomerID)
+
+	BEGIN
+		INSERT INTO dbo.ReportCustomer
+		(CustomerID,CustomerName,OrderCount)
+		select o.CustomerID,c.CustomerName,count(*) as OrderCount
+		from @xml.nodes('/RequestMessage/cust') as R(Cu)
+		join Sales.Orders o on o.CustomerID = @CustomerID
+		join Sales.Customers c on c.CustomerID = @CustomerID
+		group by o.CustomerID,c.CustomerName
+	END
+
+	SELECT @Message AS ReceivedRequestMessage, @MessageType; 
+	
+	-- Confirm and Send a reply
+	IF @MessageType=N'//WWI/SB/RequestM'
+	BEGIN
+		SET @ReplyM =N'<ReplyMessage> Message received</ReplyMessage>'; 
+	
+		SEND ON CONVERSATION @TargetDlgHandle
+		MESSAGE TYPE
+		[//WWI/SB/ReplyM]
+		(@ReplyM);
+		END CONVERSATION @TargetDlgHandle;
+	END 
+	
+	SELECT @ReplyM AS SentReplyMessage; 
+
+	COMMIT TRAN;
+END
+GO
+
+--message processing
+CREATE PROCEDURE Sales.ConfirmCustomer
+AS
+BEGIN
+	--Receiving Reply Message from the Target.	
+	DECLARE @InitiatorReplyDlgHandle UNIQUEIDENTIFIER,
+			@ReplyReceivedMessage NVARCHAR(1000) 
+	
+	BEGIN TRAN; 
+
+		RECEIVE TOP(1)
+			@InitiatorReplyDlgHandle=Conversation_Handle
+			,@ReplyReceivedMessage=Message_Body
+		FROM dbo.InitiatorQueue; 
+		
+		END CONVERSATION @InitiatorReplyDlgHandle; 
+		
+		SELECT @ReplyReceivedMessage AS ReceivedRepliedMessage; 
+
+	COMMIT TRAN; 
+END
+GO
+--alter QUEUE
+ALTER QUEUE [dbo].[InitiatorQueue] WITH STATUS = ON , RETENTION = OFF , POISON_MESSAGE_HANDLING (STATUS = OFF) 
+	, ACTIVATION (   STATUS = ON ,
+        PROCEDURE_NAME = Sales.ConfirmCustomer, MAX_QUEUE_READERS = 1, EXECUTE AS OWNER) ; 
+
+GO
+ALTER QUEUE [dbo].[TargetQueue] WITH STATUS = ON , RETENTION = OFF , POISON_MESSAGE_HANDLING (STATUS = OFF)
+	, ACTIVATION (  STATUS = ON ,
+        PROCEDURE_NAME = Sales.GetNewCustomer, MAX_QUEUE_READERS = 1, EXECUTE AS OWNER) ; 
+
+GO
+
+--viewreport
+EXEC Sales.SendNewCustomer
+	@CustomerID = 105;
+
+SELECT CAST(message_body AS XML),*
+FROM dbo.TargetQueue;
+
+SELECT CAST(message_body AS XML),*
+FROM dbo.InitiatorQueue;
+
+select * from dbo.ReportCustomer;
