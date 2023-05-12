@@ -83,7 +83,8 @@ WHEN MATCHED THEN
         target.LeadTimeDays = source.LeadTimeDays,
         target.IsChillerStock = source.IsChillerStock,
         target.TaxRate = source.TaxRate,
-        target.UnitPrice = source.UnitPrice
+        target.UnitPrice = source.UnitPrice,
+		target.LastEditedBy = 1
 WHEN NOT MATCHED THEN
     INSERT (
         StockItemName,
@@ -95,7 +96,8 @@ WHEN NOT MATCHED THEN
         LeadTimeDays,
         IsChillerStock,
         TaxRate,
-        UnitPrice
+        UnitPrice,
+		LastEditedBy
    ) VALUES (
         source.StockItemName,
         source.SupplierID,
@@ -106,10 +108,13 @@ WHEN NOT MATCHED THEN
         source.LeadTimeDays,
         source.IsChillerStock,
         source.TaxRate,
-        source.UnitPrice
+        source.UnitPrice,
+		1
    );
 
 DROP TABLE #StockItemsTemp;
+
+
 
 --XQuery
 CREATE TABLE #StockItemsTemp1 (
@@ -172,12 +177,15 @@ WHEN MATCHED THEN
                Target.LeadTimeDays = Source.LeadTimeDays, 
                Target.IsChillerStock = Source.IsChillerStock, 
                Target.TaxRate = Source.TaxRate, 
-               Target.UnitPrice = Source.UnitPrice
+               Target.UnitPrice = Source.UnitPrice,
+			   target.LastEditedBy = 1
 WHEN NOT MATCHED THEN
-    INSERT (StockItemName, SupplierID, UnitPackageID, OuterPackageID, QuantityPerOuter, TypicalWeightPerUnit, LeadTimeDays, IsChillerStock, TaxRate, UnitPrice)
-    VALUES (Source.StockItemName, Source.SupplierID, Source.UnitPackageID, Source.OuterPackageID, Source.QuantityPerOuter, Source.TypicalWeightPerUnit, Source.LeadTimeDays, Source.IsChillerStock, Source.TaxRate, Source.UnitPrice);
+    INSERT (StockItemName, SupplierID, UnitPackageID, OuterPackageID, QuantityPerOuter, TypicalWeightPerUnit, LeadTimeDays, IsChillerStock, TaxRate, UnitPrice,LastEditedBy)
+    VALUES (Source.StockItemName, Source.SupplierID, Source.UnitPackageID, Source.OuterPackageID, Source.QuantityPerOuter, Source.TypicalWeightPerUnit, Source.LeadTimeDays, Source.IsChillerStock, Source.TaxRate, Source.UnitPrice,1);
 
 drop table #StockItemsTemp1
+
+
 /*
 2. Выгрузить данные из таблицы StockItems в такой же xml-файл, как StockItems.xml
 */
@@ -195,8 +203,8 @@ from Warehouse.StockItems
 for xml path('Item'), root('StockItems')
 
 
-DECLARE @xm NVARCHAR(4000)
-set @xm = 'bcp "'+ N'select StockItemName as [@Name],SupplierID as SupplierID,UnitPackageID as [Package/UnitPackageID],OuterPackageID as [Package/OuterPackageID],QuantityPerOuter as [Package/QuantityPerOuter],TypicalWeightPerUnit as [Package/TypicalWeightPerUnit],LeadTimeDays as [LeadTimeDays],IsChillerStock as [IsChillerStock],TaxRate as [TaxRate],UnitPrice as [UnitPrice] from Warehouse.StockItems for xml path(''Item''), root(''StockItems'')'+'" queryout "C:\Ivanov\StockItems.xml" -T -w -t, -S DESKTOP-457DR4F'
+DECLARE @xm NVARCHAR(3900)
+set @xm ='bcp "'+ N'select StockItemName as [@Name],SupplierID as SupplierID,UnitPackageID as [Package/UnitPackageID],OuterPackageID as [Package/OuterPackageID],QuantityPerOuter as [Package/QuantityPerOuter],TypicalWeightPerUnit as [Package/TypicalWeightPerUnit],LeadTimeDays as [LeadTimeDays],IsChillerStock as [IsChillerStock],TaxRate as [TaxRate],UnitPrice as [UnitPrice] from WideWorldImporters.Warehouse.StockItems for xml path(''Item''),root(''StockItems'')'+'" queryout "C:\Ivanov\StockItems.xml" -T -w -t, -S DESKTOP-457DR4F'
 EXEC xp_cmdshell @xm
 
 
