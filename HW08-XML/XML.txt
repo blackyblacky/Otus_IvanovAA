@@ -204,9 +204,8 @@ for xml path('Item'), root('StockItems')
 
 
 DECLARE @xm NVARCHAR(3900)
-set @xm ='bcp "'+ N'select StockItemName as [@Name],SupplierID as SupplierID,UnitPackageID as [Package/UnitPackageID],OuterPackageID as [Package/OuterPackageID],QuantityPerOuter as [Package/QuantityPerOuter],TypicalWeightPerUnit as [Package/TypicalWeightPerUnit],LeadTimeDays as [LeadTimeDays],IsChillerStock as [IsChillerStock],TaxRate as [TaxRate],UnitPrice as [UnitPrice] from WideWorldImporters.Warehouse.StockItems for xml path(''Item''),root(''StockItems'')'+'" queryout "C:\Ivanov\StockItems.xml" -T -w -t, -S DESKTOP-457DR4F'
+set @xm ='bcp "'+ N'select StockItemName as [@Name],SupplierID as SupplierID,UnitPackageID as [Package/UnitPackageID],OuterPackageID as [Package/OuterPackageID],QuantityPerOuter as [Package/QuantityPerOuter],TypicalWeightPerUnit as [Package/TypicalWeightPerUnit],LeadTimeDays as [LeadTimeDays],IsChillerStock as [IsChillerStock],TaxRate as [TaxRate],UnitPrice as [UnitPrice] from WideWorldImporters.Warehouse.StockItems for xml path(''Item''),root(''StockItems''), type'+'" queryout "C:\Ivanov\StockItems.xml" -T -w -t, -S DESKTOP-457DR4F'
 EXEC xp_cmdshell @xm
-
 
 /*
 3. В таблице Warehouse.StockItems в колонке CustomFields есть данные в JSON.
