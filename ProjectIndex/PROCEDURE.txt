@@ -1,0 +1,61 @@
+--Хранимые процедуры
+CREATE PROCEDURE AddToBasket
+
+@IDBuyer int,
+@IDProduct int,
+@Qty int
+
+AS
+
+BEGIN
+	IF NOT EXISTS(SELECT 1 FROM Sales.Baskets WHERE IDBuyer = @IDBuyer AND IDProduct = @IDProduct)
+   BEGIN
+      INSERT INTO Sales.Baskets(IDBuyer, IDProduct, Qty)
+      VALUES (@IDBuyer, @IDProduct, @Qty)
+   END
+   ELSE
+   BEGIN
+      UPDATE Sales.Baskets 
+      SET Qty = Qty + @Qty 
+      WHERE IDBuyer = @IDBuyer AND IDProduct = @IDProduct
+   END
+END;
+GO
+
+CREATE PROCEDURE NewOrder
+
+ @IDBuyer INT,
+   @IDPayment INT,
+   @IDDelivery INT,
+   @DeliveryAddress nvarchar(100)
+AS
+BEGIN
+
+DECLARE @IDOrder INT
+
+	select b.IDBasket, b.IDBuyer,b.Qty,p.price, p.IDSeller
+	into #orders
+	from Sales.Baskets as b
+	join Warehouse.Products as p on p.IDProduct = b.IDProduct
+	where IDBuyer = @IDbuyer
+
+	insert into Sales.Orders(OrderDate,IDBuyer,IDSeller,IDDelivery,IDPayment,DeliveryAddress)
+	select GETDATE(),IDBuyer,IDSeller,@IDDelivery,@IDPayment,@DeliveryAddress from #orders
+	group by @IDOrder
+
+   SET @IDOrder = SCOPE_IDENTITY()
+
+   INSERT INTO Sales.OrderDetail (IDOrder,IDBasket, Article, Qty, ADDDATE)
+   SELECT @IDOrder,b.IDBasket,p.Article,b.Qty, GETDATE()
+   FROM Sales.Baskets as b
+   join Warehouse.Products as p on p.IDProduct=b.IDProduct
+   WHERE IDBuyer = @IDBuyer
+
+   DECLARE @IDOD int
+   SET @IDOD = SCOPE_IDENTITY()
+   UPDATE Sales.Orders
+   SET IDOrderdetail = @IDOD
+   where IDOrder = @IDOrder
+
+   DELETE FROM Sales.Baskets WHERE IDBuyer = @IDBuyer
+END;
