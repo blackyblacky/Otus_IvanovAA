@@ -1,0 +1,19 @@
+create sequence dbo.seq as int
+start with 0000000001
+increment by 1
+cycle
+cache 50;
+
+alter table sales.orderdetail add CaseID int not null default next value for dbo.seq
+
+
+CREATE TRIGGER trg_itrn
+ON Sales.OrderDetail
+AFTER INSERT
+AS
+BEGIN
+    INSERT INTO Sales.Itrn(IDProduct, Article, Qty, CaseID, ADDDATE, IDEmployees, IDOrderDetail)
+    SELECT p.IDProduct, ol.Article, ol.Qty, ol.CaseID, GETDATE(), null, ol.IDOrderdetail
+    FROM Sales.OrderDetail as ol
+	join Warehouse.Products as p on p.Article = ol.Article
+END

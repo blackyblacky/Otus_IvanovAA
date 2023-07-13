@@ -1,0 +1,7 @@
+--Создание Индексов
+
+CREATE INDEX idx_article ON Warehouse.Products (Article);
+
+CREATE INDEX idx_email ON Sales.Buyers (Email);
+
+CREATE INDEX idx_flname ON Sales.Sellers (FullNameseller);

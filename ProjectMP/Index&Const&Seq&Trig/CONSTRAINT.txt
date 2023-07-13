@@ -1,0 +1,17 @@
+--Создание ограничений
+ALTER TABLE Sales.Buyers
+ADD Constraint c_email UNIQUE(Email);
+
+ALTER TABLE Sales.Buyers 
+ADD CONSTRAINT phone_number_constraint 
+CHECK (Phonenumber LIKE '[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]');
+
+ALTER TABLE Sales.Sellers 
+ADD CONSTRAINT pn_constraint 
+CHECK (Phonenumber LIKE '[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]');
+
+alter table sales.orderdetail
+ADD CONSTRAINT UKcase UNIQUE(CaseID);
+
+alter table sales.orderdetail
+add constraint NewCaseID check (CaseID like '[0-9]');
