@@ -1,0 +1,53 @@
+insert into Directory.Category (IDCategory,CategoryName)
+values (1,'Toys'),
+		(2,'Appliances'),
+		(3,'Computers and accessories'),
+		(4,'Phones')
+GO
+
+insert into Directory.Delivery (Deliveryname)
+values ('Delivery to the point'),
+		('Delivery to the client'),
+		('Delivery to the post office')
+GO
+
+insert into Directory.Payments
+values ('Online'),
+		('Payment receipt card'),
+		('Payment receipt cash')
+GO
+
+insert into Warehouse.Employees
+values ('Jack Mayer','456-9873'),
+		('John Clinton','232-1231'),
+		('Max Bamberg','789-1235'),
+		('Mark Bikus','987-8764')
+GO
+
+insert into Sales.Sellers
+values ('MirTehniki','444-4444','Moscow,Arbat 2','1234 1111 2233 5454'),
+		('TechnoPark','123-1111','Moscow, pos. Moscow, apt. 32, vlad. 17A page 1','1233 2132 7656 8213'),
+		('SIMA-LAND','465-9821','Moscow, Novodanilovskaya embankment, 4, office 31','4123 1231 7653 1234'),
+		('HYPERPC','145-5555','Moscow, st. Folding 1s10','7612 1234 4423 8764')
+GO
+
+insert into Warehouse.Products
+values ('BB1111','PC123','3','123599.00','100','4'),
+		('BB1232','BEAR','1','5123.00','100','3'),
+		('BB1515','Iphone 20','4','130999.00','100','2'),
+		('BB1212','Constructor Car','1','6599.00','100','3'),
+		('BB1122','Fridge LG','2','99899.00','50','1'),
+		('BB2211','Washing Machine LG','2','65899.00','50','1'),
+		('BB1234','PC222','3','89999.00','100','4'),
+		('BB4312','Puzzle Moscow','1','2599.00','100','3'),
+		('BB1265','Kettle','2','4999.00','100','1')
+GO
+
+insert into Sales.Buyers
+values ('Igor Rubcov','igorrubcov@gmail.com','432-9074','Moscow, Gagarina st., 23, apartment 14'),
+		('Ivan Uvalov','ivanuvalov@gmail.com','432-1234','Kazan, Mosova st., 3, apt. 30'),
+		('Denis Bystrov','denisb@gmail.com','456-9238','Vladivostok, Mishina st., 5, apt. 213'),
+		('Ilon Mask','doggy@gmail.com','658-0971','Cherokee, Aztec st., 5'),
+		('Erik Shmidt','eriksh@gmail.com','980-0123','Sochi, Pervomaiskaya st., 56, apt. 250')
+GO
+
