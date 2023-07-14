@@ -84,3 +84,29 @@ BEGIN
         PRINT 'Нет доступных заданий.'
     END
 END;
+
+
+CREATE PROCEDURE dbo.Review
+
+@IDOrder int,
+@text nvarchar(100),
+@rat int 
+
+AS
+
+BEGIN
+    IF  @rat = 0 or @rat > 5 
+    BEGIN
+        PRINT 'The number must not be equal to 0 or greater than 5'
+    END
+    ELSE
+    BEGIN
+        PRINT 'Number is valid'
+		insert into Sales.Reviews(TextReview,Rating,IDOrder)
+		select @text, @rat, IDOrder
+		from Sales.Orders
+		where @IDOrder = IDOrder
+    END
+	
+
+END
