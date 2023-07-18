@@ -1,0 +1,39 @@
+alter database MarketPlace add filegroup million
+go
+
+
+alter database MarketPlace add file
+( name = N'mill', filename = N'C:\seqc\million.ndf',
+size = 1097152KB, filegrowth = 65536KB) to filegroup million
+go
+
+
+create partition function fnMillion (bigint) as range right for values
+('1000000','2000000','3000000','4000000','5000000','6000000','7000000','8000000','9000000','10000000')
+go
+
+create partition scheme schmMillion as partition fnMillion
+all to (million)
+go
+
+select * into Sales.OrderDetailPartitioned
+from Sales.OrderDetail
+go
+
+
+
+USE [MarketPlace]
+GO
+BEGIN TRANSACTION
+
+CREATE CLUSTERED INDEX [ClusteredIndex_on_schmMillion_638253145725641088] ON [Sales].[OrderDetailPartitioned]
+(
+	[IDOrderdetail]
+)WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF) ON [schmMillion]([IDOrderdetail])
+
+
+DROP INDEX [ClusteredIndex_on_schmMillion_638253145725641088] ON [Sales].[OrderDetailPartitioned]
+
+COMMIT TRANSACTION
+
+
