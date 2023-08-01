@@ -1,0 +1,22 @@
+Select o.CustomerID, ol.StockItemID, SUM(ol.UnitPrice) as Summa, SUM(ol.Quantity) as AllSkuShipment, COUNT(o.OrderID) as NumbOrders
+FROM Sales.Orders AS o 
+JOIN Sales.OrderLines AS ol 
+ON ol.OrderID = o.OrderID
+JOIN Sales.Invoices AS i with (INDEX (FK_Sales_Invoices_BillToCustomerID))
+ON i.OrderID = o.OrderID
+--JOIN Sales.CustomerTransactions AS Trans
+--ON Trans.InvoiceID = i.InvoiceID
+JOIN Warehouse.StockItemTransactions AS ItemTrans
+ON ItemTrans.StockItemID = ol.StockItemID
+WHERE i.BillToCustomerID != o.CustomerID
+AND (Select SupplierId
+FROM Warehouse.StockItems AS It
+Where It.StockItemID = ol.StockItemID) = 12
+AND (SELECT SUM(Total.UnitPrice*Total.Quantity)
+FROM Sales.OrderLines AS Total
+Join Sales.Orders AS ordTotal
+On ordTotal.OrderID = Total.OrderID
+WHERE ordTotal.CustomerID = i.CustomerID) > 250000
+AND DATEDIFF(dd, i.InvoiceDate, o.OrderDate) = 0
+GROUP BY o.CustomerID, ol.StockItemID
+ORDER BY o.CustomerID, ol.StockItemID
